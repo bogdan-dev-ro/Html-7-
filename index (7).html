@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>History of TON</title>
+
+<!-- Telegram Mini App SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+<!-- Icons -->
+<script src="https://unpkg.com/lucide@latest" defer></script>
+
+<!-- QR Code generator -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- Confetti -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+<style>
+  /* ============================================================
+     0. THEME TOKENS
+     ============================================================ */
+  :root {
+    --void-0: #0B0E14;
+    --void-1: #111827;
+    --card-bg: rgba(255, 255, 255, 0.045);
+    --card-border: rgba(255, 255, 255, 0.08);
+
+    --ton-blue: #0088CC;
+    --ton-cyan: #00A3FF;
+    --ton-glow: rgba(0, 163, 255, 0.35);
+
+    --text-primary: #F3F6FB;
+    --text-secondary: rgba(243, 246, 251, 0.62);
+    --text-tertiary: rgba(243, 246, 251, 0.38);
+
+    --success: #2ED573;
+
+    --era-1: #00A3FF;
+    --era-2: #FF6B6B;
+    --era-3: #FFB020;
+    --era-4: #2ED573;
+    --era-5: #FFD166;
+    --era-color: #00A3FF;
+
+    --font-display: 'SF Pro Display', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  html.tg-themed {
+    --void-0: var(--tg-theme-bg-color, #0B0E14);
+    --text-primary: var(--tg-theme-text-color, #F3F6FB);
+    --text-secondary: var(--tg-theme-hint-color, rgba(243,246,251,0.62));
+    --ton-blue: var(--tg-theme-button-color, #0088CC);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--void-0);
+  }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    background:
+      radial-gradient(circle at 50% -10%, rgba(0, 163, 255, 0.12), transparent 55%),
+      radial-gradient(circle at 85% 100%, rgba(255, 209, 102, 0.06), transparent 50%),
+      radial-gradient(ellipse at center, var(--void-1) 0%, var(--void-0) 70%);
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0, 163, 255, 0.35); border-radius: 10px; }
+
+  #constellation {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    width: 100%; height: 100%;
+  }
+
+  #ambientGlow {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% 15%, var(--era-color, #00A3FF) 0%, transparent 60%);
+    opacity: 0.10;
+    transition: opacity 0.6s ease, background 0.6s ease;
+    mix-blend-mode: screen;
+  }
+  #ambientGlow.pulse { opacity: 0.22; transition: opacity 0.15s ease; }
+
+  .corner-gem {
+    position: fixed; right: -22px; bottom: -14px; width: 128px; height: 128px;
+    z-index: 0; pointer-events: none; opacity: 0.13;
+    filter: drop-shadow(0 0 26px rgba(0, 163, 255, 0.35));
+    animation: gem-breathe 7s ease-in-out infinite;
+  }
+  @keyframes gem-breathe {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.11; }
+    50% { transform: scale(1.045) rotate(-2deg); opacity: 0.19; }
+  }
+
+  #app { max-width: 440px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* ============================================================
+     1. TOP NAV — sticky, scroll-driven
+     ============================================================ */
+  .topbar {
+    position: sticky; top: 0; z-index: 40;
+    padding: 14px 20px 12px;
+    background: linear-gradient(to bottom, rgba(11,14,20,0.88) 55%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  .topbar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+
+  .brand { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .brand .brand-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .brand .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ton-cyan); box-shadow: 0 0 8px var(--ton-cyan); flex-shrink: 0; }
+  .brand .witness-line {
+    font-size: 10.5px; color: var(--text-tertiary); font-weight: 500;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .step-counter {
+    font-size: 12.5px; font-weight: 700; color: var(--era-color); font-variant-numeric: tabular-nums;
+    transition: color 0.4s ease; min-width: 20px; text-align: right;
+  }
+
+  .sound-toggle {
+    all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary); background: var(--card-bg); border: 1px solid var(--card-border);
+    transition: color 0.2s ease, transform 0.15s ease;
+  }
+  .sound-toggle:active { transform: scale(0.9); }
+  .sound-toggle.muted { opacity: 0.55; }
+  .sound-toggle svg { width: 14px; height: 14px; }
+
+  .progress-track { position: relative; width: 100%; height: 4px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; }
+  .progress-fill {
+    position: absolute; inset: 0 auto 0 0; width: 0%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--ton-blue), var(--ton-cyan));
+    box-shadow: 0 0 12px var(--ton-glow);
+    transition: width 0.15s linear;
+  }
+
+  .progress-marks { display: flex; justify-content: space-between; margin-top: 8px; padding: 0 1px; }
+  .progress-marks button {
+    all: unset; cursor: pointer;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+    padding: 4px 5px;
+    transition: color 0.3s ease, transform 0.15s ease;
+  }
+  .progress-marks button:active { transform: scale(0.9); }
+  .progress-marks button.active { color: var(--text-primary); }
+  .progress-marks button.visited::before {
+    content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--ton-cyan); margin-right: 4px; vertical-align: middle;
+    box-shadow: 0 0 6px var(--ton-cyan);
+  }
+
+  /* ============================================================
+     2. MAIN — continuous scroll flow
+     ============================================================ */
+  main { position: relative; padding: 0 20px calc(56px + var(--safe-bottom)); }
+
+  /* --- Hero --- */
+  .hero-section {
+    min-height: 82vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 12px 2px 40px;
+  }
+  .hero-eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ton-cyan); margin-bottom: 16px;
+  }
+  .hero-title {
+    font-family: var(--font-display); font-size: 40px; line-height: 1.08; font-weight: 800;
+    letter-spacing: -0.03em; margin: 0 0 18px; color: #fff;
+  }
+  .hero-title span {
+    background: linear-gradient(135deg, var(--ton-cyan), var(--ton-blue));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-sub { font-size: 16px; line-height: 1.6; color: var(--text-secondary); max-width: 340px; margin: 0; }
+  .scroll-cue {
+    margin-top: 52px; display: flex; align-items: center; gap: 8px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.02em;
+    transition: opacity 0.3s ease;
+    animation: cue-bounce 1.8s ease-in-out infinite;
+  }
+  .scroll-cue svg { width: 15px; height: 15px; }
+  @keyframes cue-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+  /* --- Shared reveal behavior for every story section --- */
+  .chapter-section, .witness-section {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.7s var(--ease-out-expo), transform 0.7s var(--ease-out-expo);
+  }
+  .chapter-section.in-view, .witness-section.in-view { opacity: 1; transform: translateY(0); }
+
+  /* --- Rail timeline (chapters 1-4 only) --- */
+  .rail-group { position: relative; }
+  .rail-group .chapter-section {
+    display: flex; align-items: stretch; gap: 16px; padding: 56px 0;
+  }
+  .rail-group .chapter-section:first-child { padding-top: 8px; }
+  .chapter-body { flex: 1; min-width: 0; }
+
+  .rail-cell { width: 22px; flex-shrink: 0; position: relative; }
+  .rail-line {
+    position: absolute; top: 20px; bottom: -132px; left: 50%; width: 2px; margin-left: -1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .rail-fill {
+    position: absolute; top: 20px; left: 50%; width: 2px; margin-left: -1px; height: 0;
+    background: linear-gradient(var(--ton-blue), var(--ton-cyan));
+    box-shadow: 0 0 8px var(--ton-glow);
+    transition: height 0.9s var(--ease-out-expo);
+  }
+  .chapter-section.in-view .rail-fill { height: calc(100% - 20px + 132px); }
+  .rail-group .chapter-section:last-child .rail-line,
+  .rail-group .chapter-section:last-child .rail-fill { display: none; }
+  .rail-dot {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.22);
+    transition: background 0.5s var(--ease-out-expo), border-color 0.5s var(--ease-out-expo),
+                box-shadow 0.5s var(--ease-out-expo), transform 0.5s var(--ease-out-expo);
+    z-index: 2;
+  }
+  .chapter-section.in-view .rail-dot {
+    background: var(--era-color); border-color: var(--era-color); box-shadow: 0 0 14px var(--era-color);
+    transform: translateX(-50%) scale(1.15);
+  }
+
+  .era-glyph {
+    width: 56px; height: 56px; border-radius: 16px; position: relative;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+    margin-bottom: 22px;
+    background: color-mix(in srgb, var(--era-color) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--era-color) 40%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--era-color) 30%, transparent);
+  }
+  .in-view .era-glyph { animation: glyph-in 0.7s var(--ease-out-expo); }
+  @keyframes glyph-in { from { opacity: 0; transform: scale(0.6) rotate(-8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+  .era-glyph.pressable::after {
+    content: ''; position: absolute; inset: -6px; border-radius: 20px;
+    border: 1px dashed transparent; transition: border-color 0.2s ease;
+  }
+  .era-glyph.pressable:active::after { border-color: rgba(255,255,255,0.18); }
+
+  .badge {
+    display: inline-flex; align-self: flex-start; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 6px 12px; border-radius: 999px; color: var(--era-color);
+    background: color-mix(in srgb, var(--era-color) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--era-color) 32%, transparent);
+    margin-bottom: 16px;
+  }
+
+  .chapter-title {
+    font-family: var(--font-display); font-size: 26px; line-height: 1.22; font-weight: 750;
+    letter-spacing: -0.02em; margin: 0 0 14px;
+    background: linear-gradient(180deg, #FFFFFF 20%, rgba(255,255,255,0.78));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .chapter-text { font-size: 15.5px; line-height: 1.65; color: var(--text-secondary); margin: 0 0 6px; }
+  .chapter-text strong { color: var(--text-primary); font-weight: 600; }
+
+  .stat-row { display: flex; gap: 10px; margin-top: 22px; }
+  .stat-chip { flex: 1; padding: 12px 14px; border-radius: 14px; background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(16px); }
+  .stat-chip .num { font-size: 17px; font-weight: 700; font-family: var(--font-display); color: var(--era-color); }
+  .stat-chip .label { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    all: unset; box-sizing: border-box; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-body);
+    font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 999px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14); color: var(--text-primary);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease, color 0.2s ease;
+  }
+  .chip:active { transform: scale(0.95); }
+  .chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .chip.active-chip {
+    background: color-mix(in srgb, var(--era-color) 18%, transparent);
+    border-color: color-mix(in srgb, var(--era-color) 45%, transparent);
+    color: var(--era-color);
+  }
+  .chip-caption { margin-top: 12px; font-size: 13px; color: var(--text-tertiary); }
+
+  .token-info { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s var(--ease-out-expo), opacity 0.3s ease; }
+  .token-info.open { max-height: 260px; opacity: 1; }
+  .token-info-body { margin-top: 14px; padding: 13px 15px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); }
+  .ti-name { font-size: 12.5px; font-weight: 700; letter-spacing: 0.03em; color: var(--era-color); margin-bottom: 6px; }
+  .ti-text { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--text-secondary); }
+
+  .scroll-hint {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 24px; font-size: 11px; color: var(--text-tertiary);
+    animation: hint-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes hint-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
+  .scroll-hint svg { width: 13px; height: 13px; }
+
+  /* ============================================================
+     3. BUTTONS (shared)
+     ============================================================ */
+  .btn {
+    all: unset; box-sizing: border-box; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-body); font-weight: 600; font-size: 15px;
+    border-radius: 16px; padding: 15px 20px;
+    transition: transform 0.15s var(--ease-out-expo), filter 0.15s ease, opacity 0.2s ease;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    color: #04121C;
+    background: linear-gradient(135deg, var(--ton-cyan), var(--ton-blue));
+    box-shadow: 0 8px 24px -8px var(--ton-glow), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  }
+  .btn-primary:active { filter: brightness(0.94); }
+  .btn-primary.witness-mode {
+    background: linear-gradient(135deg, #FFE29A, var(--era-5));
+    box-shadow: 0 8px 24px -8px rgba(255, 209, 102, 0.4), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  }
+  .btn-primary:disabled { opacity: 0.55; pointer-events: none; filter: grayscale(0.25); }
+
+  /* ============================================================
+     4. WITNESS SECTION — "Leave Your Mark"
+     ============================================================ */
+  .witness-section { padding: 60px 0 20px; }
+  .glass-card { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 22px; padding: 22px; }
+
+  .witness-hero { text-align: center; margin-bottom: 4px; }
+  .witness-hero .era-glyph { margin: 0 auto 16px; }
+  .witness-card-inner { text-align: left; }
+
+  .past-note-card {
+    padding: 13px 15px; border-radius: 14px; margin-bottom: 18px;
+    background: rgba(0, 163, 255, 0.06); border: 1px solid rgba(0, 163, 255, 0.2);
+  }
+  .pn-label {
+    display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--ton-cyan); margin-bottom: 6px;
+  }
+  .pn-label svg { width: 12px; height: 12px; }
+  .pn-text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-primary); font-style: italic; }
+  .pn-meta { display: block; margin-top: 6px; font-size: 10.5px; color: var(--text-tertiary); }
+
+  .constellation-preview { display: flex; justify-content: center; gap: 10px; margin: 4px 0 20px; }
+  .cp-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.12);
+    transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.4s var(--ease-out-expo);
+  }
+  .cp-dot.lit { background: var(--ton-cyan); box-shadow: 0 0 10px var(--ton-cyan); transform: scale(1.15); }
+  .cp-dot.mine { background: var(--era-5); box-shadow: 0 0 12px var(--era-5); }
+
+  .witness-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 14px; margin: 16px 0 18px;
+    background: rgba(255, 209, 102, 0.08); border: 1px solid rgba(255, 209, 102, 0.22);
+  }
+  .witness-status svg { width: 18px; height: 18px; color: var(--era-5); flex-shrink: 0; }
+  .witness-status .id { font-size: 12.5px; color: var(--text-primary); font-weight: 600; }
+  .witness-status .sub { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+
+  .note-capsule { margin-top: 4px; }
+  .note-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+  .note-capsule textarea {
+    width: 100%; resize: none; border-radius: 14px; padding: 12px 14px;
+    background: rgba(0,0,0,0.28); border: 1px solid var(--card-border); color: var(--text-primary);
+    font-family: var(--font-body); font-size: 13.5px; line-height: 1.5; outline: none;
+    transition: border-color 0.2s ease;
+  }
+  .note-capsule textarea:focus { border-color: rgba(0,163,255,0.4); }
+  .note-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .note-count { font-size: 10.5px; color: var(--text-tertiary); }
+  .note-save {
+    all: unset; cursor: pointer; font-size: 12.5px; font-weight: 700; color: #04121C;
+    background: linear-gradient(135deg, var(--ton-cyan), var(--ton-blue));
+    padding: 8px 16px; border-radius: 999px; transition: transform 0.15s ease;
+  }
+  .note-save:active { transform: scale(0.94); }
+
+  .witness-card-btn {
+    all: unset; box-sizing: border-box; width: 100%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 16px; padding: 14px; border-radius: 16px;
+    font-size: 14px; font-weight: 700; color: var(--era-5);
+    background: rgba(255, 209, 102, 0.08); border: 1px solid rgba(255, 209, 102, 0.28);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  .witness-card-btn:active { transform: scale(0.97); background: rgba(255, 209, 102, 0.14); }
+  .witness-card-btn svg { width: 16px; height: 16px; }
+
+  details.optional-support {
+    margin-top: 18px; border-radius: 16px; padding: 14px 16px;
+    background: rgba(0, 163, 255, 0.07); border: 1.5px solid rgba(0, 163, 255, 0.5);
+  }
+  details.optional-support summary {
+    cursor: pointer; list-style: none; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); display: flex; align-items: center; gap: 8px;
+  }
+  details.optional-support summary::-webkit-details-marker { display: none; }
+  details.optional-support summary svg { width: 15px; height: 15px; color: var(--text-tertiary); transition: transform 0.25s ease; }
+  details.optional-support[open] summary svg { transform: rotate(90deg); }
+
+  details.optional-quiz {
+    margin-top: 18px; border-radius: 16px; padding: 14px 16px;
+    background: rgba(0, 163, 255, 0.07); border: 1.5px solid rgba(0, 163, 255, 0.5);
+  }
+  details.optional-quiz summary {
+    cursor: pointer; list-style: none; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); display: flex; align-items: center; gap: 8px;
+  }
+  details.optional-quiz summary::-webkit-details-marker { display: none; }
+  details.optional-quiz summary svg { width: 15px; height: 15px; color: var(--text-tertiary); transition: transform 0.25s ease; }
+  details.optional-quiz[open] summary svg { transform: rotate(90deg); }
+  .quiz-wrap { padding-top: 16px; }
+  .quiz-progress { font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .quiz-question { font-size: 14.5px; color: var(--text-primary); font-weight: 600; margin: 0 0 14px; line-height: 1.5; }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-option {
+    all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+    padding: 12px 14px; border-radius: 12px; font-size: 13.5px; color: var(--text-primary);
+    background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  }
+  .quiz-option:active { transform: scale(0.98); }
+  .quiz-option.correct { background: rgba(46,213,115,0.14); border-color: rgba(46,213,115,0.5); color: #2ED573; }
+  .quiz-option.incorrect { background: rgba(255,107,107,0.12); border-color: rgba(255,107,107,0.45); color: #FF6B6B; }
+  .quiz-option.disabled { pointer-events: none; opacity: 0.65; }
+  .quiz-feedback { margin-top: 12px; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+  .quiz-next {
+    all: unset; cursor: pointer; margin-top: 14px; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700; color: #04121C;
+    background: linear-gradient(135deg, var(--ton-cyan), var(--ton-blue));
+    padding: 10px 18px; border-radius: 999px; transition: transform 0.15s ease;
+  }
+  .quiz-next:active { transform: scale(0.95); }
+  .quiz-next svg { width: 13px; height: 13px; }
+  .quiz-result { text-align: center; padding: 14px 6px 4px; }
+  .quiz-result .score { font-size: 30px; font-weight: 800; font-family: var(--font-display); color: var(--era-4); margin-bottom: 6px; }
+  .quiz-result .msg { font-size: 13.5px; color: var(--text-secondary); }
+  .support-body { padding-top: 16px; }
+
+  .qr-wrap { display: flex; justify-content: center; margin: 14px 0 16px; }
+  #qrcode-canvas-holder {
+    padding: 14px; background: #fff; border-radius: 18px;
+    box-shadow: 0 0 40px -4px var(--ton-glow), 0 12px 30px -12px rgba(0,0,0,0.6);
+    line-height: 0;
+  }
+  #qrcode-canvas-holder img, #qrcode-canvas-holder canvas { border-radius: 8px; display: block; }
+
+  .wallet-box {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 16px;
+    background: rgba(200, 230, 255, 0.92); border: 1.5px solid rgba(0, 163, 255, 0.55);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .wallet-box:active { background: rgba(200, 230, 255, 1); border-color: rgba(0, 163, 255, 0.85); }
+  .wallet-box .addr {
+    flex: 1; font-family: 'SF Mono', 'Menlo', monospace; font-size: 13px; color: #071A2C; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .wallet-box .copy-icon {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--ton-cyan), var(--ton-blue));
+    display: flex; align-items: center; justify-content: center; color: #04121C;
+  }
+  .wallet-box .copy-icon svg { width: 16px; height: 16px; }
+  .wallet-hint { font-size: 11.5px; color: var(--text-tertiary); text-align: center; margin-top: 10px; }
+
+  /* ============================================================
+     5. TOAST / WHISPER / MODAL
+     ============================================================ */
+  .toast {
+    position: fixed; left: 50%; bottom: calc(28px + var(--safe-bottom));
+    transform: translateX(-50%) translateY(calc(100% + 60px));
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 20px; border-radius: 999px;
+    background: rgba(20, 25, 38, 0.94); border: 1px solid rgba(46, 213, 115, 0.35);
+    box-shadow: 0 10px 32px -6px rgba(0,0,0,0.55), 0 0 20px rgba(46,213,115,0.15);
+    backdrop-filter: blur(14px);
+    font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+    z-index: 200; transition: transform 0.45s var(--ease-out-expo);
+    max-width: calc(440px - 40px); text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast svg { width: 16px; height: 16px; color: var(--success); flex-shrink: 0; }
+
+  .whisper-bubble {
+    position: fixed; max-width: 260px; padding: 12px 14px; border-radius: 14px;
+    background: rgba(18, 22, 34, 0.96); border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 14px 34px -10px rgba(0,0,0,0.6);
+    font-size: 12.5px; line-height: 1.5; color: var(--text-primary);
+    z-index: 250; opacity: 0; transform: translateY(6px) scale(0.96);
+    transition: opacity 0.25s var(--ease-out-expo), transform 0.25s var(--ease-out-expo);
+    pointer-events: none;
+  }
+  .whisper-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+  .whisper-bubble .wb-label {
+    display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--era-color); margin-bottom: 4px;
+  }
+
+  .card-modal {
+    position: fixed; inset: 0; z-index: 500; display: none;
+    align-items: center; justify-content: center; padding: 24px;
+    background: rgba(5, 7, 12, 0.86); backdrop-filter: blur(10px);
+  }
+  .card-modal.show { display: flex; }
+  .card-modal-inner { position: relative; width: 100%; max-width: 360px; animation: modal-in 0.4s var(--ease-out-expo); }
+  @keyframes modal-in { from { opacity: 0; transform: scale(0.92) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .card-modal-inner img { width: 100%; border-radius: 20px; display: block; box-shadow: 0 20px 60px -12px rgba(0,0,0,0.7); }
+  .card-modal-close {
+    all: unset; cursor: pointer; position: absolute; top: -14px; right: -8px;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(20,25,38,0.95); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-primary); z-index: 2;
+  }
+  .card-modal-close svg { width: 16px; height: 16px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  @media (max-width: 360px) {
+    .chapter-title { font-size: 22px; }
+    .hero-title { font-size: 32px; }
+    main, .topbar { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="constellation"></canvas>
+<div id="ambientGlow"></div>
+<svg id="cornerGem" class="corner-gem" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="gemGradCorner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5AC8FA"/>
+      <stop offset="100%" stop-color="#0062A8"/>
+    </linearGradient>
+  </defs>
+  <path d="M20 34 L80 34 M50 34 L50 86 M20 34 L50 86 M80 34 L50 86" fill="none" stroke="url(#gemGradCorner)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
+
+<div id="app">
+
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="brand">
+        <span class="brand-title"><span class="dot"></span> History of TON</span>
+        <span class="witness-line" id="witnessLine"></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button id="shareBtn" class="sound-toggle" aria-label="Share this story"><span data-icon="share-2"></span></button>
+        <button id="soundToggle" class="sound-toggle" aria-label="Toggle sound"><span data-icon="volume-2"></span></button>
+        <div class="step-counter" id="stepCounter"></div>
+      </div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-marks" id="progressMarks">
+      <button data-i="0">2018</button>
+      <button data-i="1">2020</button>
+      <button data-i="2">2021</button>
+      <button data-i="3">NOW</button>
+      <button data-i="4">MARK</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- HERO -->
+    <section id="hero" class="hero-section" data-era="var(--era-1)">
+      <span class="hero-eyebrow">A Web3 Origin Story</span>
+      <h1 class="hero-title">History of <span>TON</span></h1>
+      <p class="hero-sub">From a $1.7B vision and a courtroom fight, to a Layer-1 blockchain now shared by dozens of independent coins. Scroll to walk through it.</p>
+      <div class="scroll-cue" id="scrollCue"><span data-icon="chevron-down"></span> scroll to begin</div>
+    </section>
+
+    <div class="rail-group">
+
+      <!-- CHAPTER 1 -->
+      <section class="chapter-section" id="ch0" data-index="0" data-era="var(--era-1)" data-label="2018">
+        <div class="rail-cell"><span class="rail-line"></span><span class="rail-fill"></span><span class="rail-dot"></span></div>
+        <div class="chapter-body">
+          <div class="era-glyph pressable" data-whisper="At its peak, TON's private sale ranked among the largest token raises ever recorded — bigger than most Series A rounds combined.">⚡</div>
+          <span class="badge">⚡ 2018 · The Beginning</span>
+          <h2 class="chapter-title">The Gram Vision</h2>
+          <p class="chapter-text">Pavel &amp; Nikolai Durov envision the <strong>Telegram Open Network (TON)</strong> — a blockchain fast enough, and simple enough, to serve the hundreds of millions of people already living inside Telegram.</p>
+          <p class="chapter-text">To fund it, they raise a staggering <strong>$1.7 billion</strong> from private investors — one of the largest token pre-sales in history — built around a native currency called <strong>GRAM</strong>.</p>
+          <div class="stat-row">
+            <div class="stat-chip"><div class="num">$1.7B</div><div class="label">raised in 2018</div></div>
+            <div class="stat-chip"><div class="num">175+</div><div class="label">private investors</div></div>
+          </div>
+          <div class="scroll-hint"><span data-icon="chevron-down"></span> keep scrolling</div>
+        </div>
+      </section>
+
+      <!-- CHAPTER 2 -->
+      <section class="chapter-section" id="ch1" data-index="1" data-era="var(--era-2)" data-label="2020">
+        <div class="rail-cell"><span class="rail-line"></span><span class="rail-fill"></span><span class="rail-dot"></span></div>
+        <div class="chapter-body">
+          <div class="era-glyph pressable" data-whisper="The SEC's case against Telegram became a reference point cited in token-classification disputes for years afterward.">⚖️</div>
+          <span class="badge">⚖️ 2020 · The Regulatory Storm</span>
+          <h2 class="chapter-title">The SEC Clash</h2>
+          <p class="chapter-text">Just before GRAM's public launch, the <strong>U.S. Securities and Exchange Commission</strong> steps in and halts the distribution, arguing the token sale amounted to an unregistered securities offering.</p>
+          <p class="chapter-text">After a bruising legal battle in a New York courtroom, Telegram is forced to step back — <strong>returning billions</strong> to early investors. GRAM, as a public currency, would never launch.</p>
+          <div class="stat-row">
+            <div class="stat-chip"><div class="num">Oct '19</div><div class="label">SEC injunction</div></div>
+            <div class="stat-chip"><div class="num">May '20</div><div class="label">project shelved</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAPTER 3 -->
+      <section class="chapter-section" id="ch2" data-index="2" data-era="var(--era-3)" data-label="2021">
+        <div class="rail-cell"><span class="rail-line"></span><span class="rail-fill"></span><span class="rail-dot"></span></div>
+        <div class="chapter-body">
+          <div class="era-glyph pressable" data-whisper="Some of the earliest post-revival miners ran Proof-of-Work Givers on nothing more than personal laptops and pure conviction.">⛏️</div>
+          <span class="badge">⛏️ 2021 · Proof-of-Work Givers</span>
+          <h2 class="chapter-title">Community Resistance</h2>
+          <p class="chapter-text">The open-source spirit can't be killed. A scattered group of independent developers picks up Telegram's abandoned code and <strong>revives the network from scratch</strong>, renaming it The Open Network.</p>
+          <p class="chapter-text">Every original allocation is locked inside <strong>Proof-of-Work Giver</strong> smart contracts — the entire supply had to be mined from zero, fairly and decentrally, by the community itself. When the dust settled, it carried a new name: <strong>Toncoin</strong>.</p>
+          <div class="stat-row">
+            <div class="stat-chip"><div class="num">0</div><div class="label">pre-mined coins</div></div>
+            <div class="stat-chip"><div class="num">100%</div><div class="label">community mined</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAPTER 4 -->
+      <section class="chapter-section" id="ch3" data-index="3" data-era="var(--era-4)" data-label="Now">
+        <div class="rail-cell"><span class="rail-line"></span><span class="rail-fill"></span><span class="rail-dot"></span></div>
+        <div class="chapter-body">
+          <div class="era-glyph pressable" data-whisper="TON's tap-to-earn games alone onboarded more new wallets in a matter of months than most blockchains see in years.">🚀</div>
+          <span class="badge">🚀 Present · The Unstoppable Ecosystem</span>
+          <h2 class="chapter-title">The Renaissance</h2>
+          <p class="chapter-text">TON today isn't just one currency — it has grown into a full <strong>Layer-1 blockchain</strong>: a shared foundation that any project can build on and issue its own coin over.</p>
+          <p class="chapter-text">GRAM never reached the public in 2018. Reborn by the community as <strong>Toncoin</strong> in 2021, it ran independently for years — until Telegram quietly took back control of the network's validators in May 2026. Weeks later, the community voted, and the coin came full circle: as of June 15, 2026, it's called <strong>GRAM</strong> again.</p>
+          <div class="stat-row">
+            <div class="stat-chip"><div class="num">900M+</div><div class="label">Telegram users reached</div></div>
+            <div class="stat-chip"><div class="num">Jun '26</div><div class="label">the name GRAM returns</div></div>
+          </div>
+          <div class="chip-row" id="chipRow" aria-label="Example coins living on the TON blockchain">
+            <button class="chip" data-token="gram" type="button"><span class="chip-dot" style="background:#00A3FF;"></span>GRAM</button>
+            <button class="chip" data-token="notcoin" type="button"><span class="chip-dot" style="background:#FFD166;"></span>Notcoin (NOT)</button>
+            <button class="chip" data-token="dogs" type="button"><span class="chip-dot" style="background:#FF6B6B;"></span>DOGS</button>
+            <button class="chip" data-token="usdt" type="button"><span class="chip-dot" style="background:#2ED573;"></span>USD₮ (Tether)</button>
+          </div>
+          <div class="token-info" id="tokenInfo">
+            <div class="token-info-body">
+              <div class="ti-name" id="tiName"></div>
+              <p class="ti-text" id="tiText"></p>
+            </div>
+          </div>
+          <p class="chapter-text chip-caption">Tap a coin to see what it actually is — TON is simply the ground they're all built on.</p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- WITNESS / MARK -->
+    <section class="witness-section" id="ch4" data-index="4" data-era="var(--era-5)" data-label="Your Mark">
+      <div class="glass-card witness-card-inner">
+
+        <div class="past-note-card" id="pastNoteCard" style="display:none;">
+          <span class="pn-label"><span data-icon="mail"></span> a message from your past self</span>
+          <p class="pn-text" id="pastNoteText"></p>
+          <span class="pn-meta" id="pastNoteMeta"></span>
+        </div>
+
+        <div class="witness-hero">
+          <div class="era-glyph pressable" data-whisper="Nothing about this star is stored anywhere but this device. No server remembers you — only you do.">✨</div>
+        </div>
+        <span class="badge">✨ The Living Ledger</span>
+        <h2 class="chapter-title" style="font-size:22px;">Leave Your Mark</h2>
+        <p class="chapter-text" style="margin:0 0 4px;">
+          This isn't about money. The four dots below are already lit — one
+          for each chapter you just read. A fifth stays dark until you leave your mark.
+        </p>
+
+        <div class="constellation-preview" id="constellationPreview">
+          <div class="cp-dot" data-node="0"></div>
+          <div class="cp-dot" data-node="1"></div>
+          <div class="cp-dot" data-node="2"></div>
+          <div class="cp-dot" data-node="3"></div>
+          <div class="cp-dot mine" data-node="4"></div>
+        </div>
+
+        <button class="btn btn-primary witness-mode" id="leaveMarkBtn" style="width:100%; box-sizing:border-box;">
+          <span id="leaveMarkLabel">Leave My Mark</span>
+          <span data-icon="sparkles"></span>
+        </button>
+
+        <div class="witness-status" id="witnessStatus" style="display:none;">
+          <span data-icon="sparkles"></span>
+          <div>
+            <div class="id" id="witnessStatusId">Witness #—</div>
+            <div class="sub" id="witnessStatusSub">counted on this device</div>
+          </div>
+        </div>
+
+        <div class="note-capsule" id="noteCapsule" style="display:none;">
+          <label class="note-label" for="noteInput">Leave a line for future-you (optional)</label>
+          <textarea id="noteInput" maxlength="140" rows="2" placeholder="What does this story mean to you?"></textarea>
+          <div class="note-row">
+            <span class="note-count" id="noteCount">0/140</span>
+            <button class="note-save" id="noteSaveBtn">Save note</button>
+          </div>
+        </div>
+
+        <button class="witness-card-btn" id="viewCardBtn" style="display:none;">
+          <span data-icon="image"></span> View my Witness Card
+        </button>
+
+        <details class="optional-quiz">
+          <summary><span data-icon="chevron-right"></span> Test what you remember (optional)</summary>
+          <div class="quiz-wrap">
+            <div class="quiz-body" id="quizBody">
+              <div class="quiz-progress" id="quizProgress"></div>
+              <p class="quiz-question" id="quizQuestion"></p>
+              <div class="quiz-options" id="quizOptions"></div>
+              <div class="quiz-feedback" id="quizFeedback" style="display:none;"></div>
+              <button class="quiz-next" id="quizNextBtn" style="display:none;">Next <span data-icon="chevron-right"></span></button>
+            </div>
+            <div class="quiz-result" id="quizResult" style="display:none;"></div>
+          </div>
+        </details>
+
+        <details class="optional-support">
+          <summary><span data-icon="chevron-right"></span> Also want to support with TON? (optional)</summary>
+          <div class="support-body">
+            <p class="chapter-text" style="font-size:13px;">
+              100% optional — the story doesn't need it, but if you'd like to
+              help keep this project running, here's the wallet.
+            </p>
+            <div class="qr-wrap"><div id="qrcode-canvas-holder"></div></div>
+            <div class="wallet-box" id="walletBox" role="button" tabindex="0">
+              <span class="addr" id="walletAddr">UQA5qsYrra5...DHqsK5C6</span>
+              <span class="copy-icon" id="copyIcon"><span data-icon="copy"></span></span>
+            </div>
+            <div class="wallet-hint">Tap the address or scan the QR to copy</div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="card-modal" id="cardModal">
+  <div class="card-modal-inner">
+    <button class="card-modal-close" id="cardModalClose" aria-label="Close"><span data-icon="x"></span></button>
+    <img id="cardModalImg" alt="Your Witness Card" />
+    <a id="cardDownloadBtn" class="btn btn-primary" style="width:100%; margin-top:16px; box-sizing:border-box;" download="ton-history-witness-card.png">
+      <span data-icon="download"></span> Save Image
+    </a>
+  </div>
+</div>
+
+<div class="whisper-bubble" id="whisperBubble">
+  <span class="wb-label">From the archive</span>
+  <span id="whisperText"></span>
+</div>
+
+<div class="toast" id="toast">
+  <span data-icon="check-circle-2"></span>
+  <span id="toastMsg">Address copied to clipboard! 🚀</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     0. TELEGRAM WEBAPP BOOTSTRAP
+     ============================================================ */
+  var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+  function haptic(style) { try { if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(style || 'light'); } catch (e) {} }
+  function hapticNotify(type) { try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(type || 'success'); } catch (e) {} }
+
+  if (tg) {
+    try {
+      tg.ready();
+      tg.expand();
+      document.documentElement.classList.add('tg-themed');
+      var applyTheme = function () {
+        var p = tg.themeParams || {};
+        var root = document.documentElement.style;
+        if (p.bg_color) root.setProperty('--tg-theme-bg-color', p.bg_color);
+        if (p.text_color) root.setProperty('--tg-theme-text-color', p.text_color);
+        if (p.hint_color) root.setProperty('--tg-theme-hint-color', p.hint_color);
+        if (p.button_color) root.setProperty('--tg-theme-button-color', p.button_color);
+        if (tg.setHeaderColor) { try { tg.setHeaderColor('#0B0E14'); } catch (e) {} }
+        if (tg.setBackgroundColor) { try { tg.setBackgroundColor('#0B0E14'); } catch (e) {} }
+      };
+      applyTheme();
+      tg.onEvent && tg.onEvent('themeChanged', applyTheme);
+      if (tg.MainButton) { try { tg.MainButton.hide(); } catch (e) {} }
+      if (tg.BackButton) {
+        tg.BackButton.onClick(function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      }
+    } catch (e) {}
+  }
+
+  /* ============================================================
+     1. ICONS
+     ============================================================ */
+  function paintAllIcons() {
+    document.querySelectorAll('[data-icon]').forEach(function (el) {
+      if (el.querySelector('svg')) return;
+      var i = document.createElement('i');
+      i.setAttribute('data-lucide', el.getAttribute('data-icon'));
+      el.innerHTML = '';
+      el.appendChild(i);
+    });
+    if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+  }
+  var lucideTries = 0;
+  (function waitForLucide() {
+    if (window.lucide) { paintAllIcons(); return; }
+    lucideTries++;
+    if (lucideTries < 60) setTimeout(waitForLucide, 80);
+  })();
+
+  /* ============================================================
+     1b. SOUND ENGINE — synthesized, no audio files
+     ============================================================ */
+  var LS_SOUND = 'ton_history_sound';
+  function safeGetSound() { try { var v = window.localStorage.getItem(LS_SOUND); return v === null ? true : v === '1'; } catch (e) { return true; } }
+  function safeSetSound(v) { try { window.localStorage.setItem(LS_SOUND, v ? '1' : '0'); } catch (e) {} }
+  var soundEnabled = safeGetSound();
+
+  var audioCtx = null;
+  function ensureAudio() {
+    if (audioCtx) return audioCtx;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        audioCtx = new AC();
+        if (soundEnabled) startAmbientMusic();
+      }
+    } catch (e) {}
+    return audioCtx;
+  }
+
+  /* Ambient background — a very quiet supporting pad underneath, and a
+     clearly audible, looping nostalgic melody on top (a minor-pentatonic
+     "music box" phrase). Generated entirely with oscillators, no audio
+     files, and the melody always sits comfortably below the UI sounds. */
+  var ambientNodes = [];
+  var ambientGain = null;
+  var melodyGain = null;
+  var ambientPlaying = false;
+  var melodyLoopTimer = null;
+
+  var MELODY_PHRASE = [
+    { f: 329.6, d: 0.0, len: 0.6 },   // E4
+    { f: 392.0, d: 0.65, len: 0.5 },  // G4
+    { f: 440.0, d: 1.2, len: 0.9 },   // A4
+    { f: 392.0, d: 2.2, len: 0.5 },   // G4
+    { f: 329.6, d: 2.75, len: 0.5 },  // E4
+    { f: 293.7, d: 3.3, len: 0.9 },   // D4
+    { f: 440.0, d: 4.3, len: 0.5 },   // A4
+    { f: 523.3, d: 4.85, len: 0.5 },  // C5
+    { f: 587.3, d: 5.4, len: 0.9 },   // D5
+    { f: 523.3, d: 6.4, len: 0.5 },   // C5
+    { f: 440.0, d: 6.95, len: 0.5 },  // A4
+    { f: 392.0, d: 7.5, len: 0.9 },   // G4
+    { f: 329.6, d: 8.5, len: 0.6 },   // E4
+    { f: 293.7, d: 9.15, len: 0.5 },  // D4
+    { f: 261.6, d: 9.7, len: 0.9 },   // C4
+    { f: 220.0, d: 10.7, len: 1.8 }   // A3 — resolves down, wistful, comes home
+  ];
+  var MELODY_PHRASE_CYCLE = 14.5; // seconds, includes a quiet breath before it repeats
+
+  function playMelodyNote(freq, startDelay, duration) {
+    var ctx0 = audioCtx;
+    if (!ctx0 || !melodyGain) return;
+    var t0 = ctx0.currentTime + startDelay;
+    var osc = ctx0.createOscillator();
+    var osc2 = ctx0.createOscillator(); // soft octave shimmer, for a bell/music-box color
+    var g = ctx0.createGain();
+    var g2 = ctx0.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, t0);
+    osc2.type = 'sine'; osc2.frequency.setValueAtTime(freq * 2, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.075, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    g2.gain.setValueAtTime(0, t0);
+    g2.gain.linearRampToValueAtTime(0.018, t0 + 0.015);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t0 + duration * 0.6);
+    osc.connect(g); g.connect(melodyGain);
+    osc2.connect(g2); g2.connect(melodyGain);
+    osc.start(t0); osc.stop(t0 + duration + 0.05);
+    osc2.start(t0); osc2.stop(t0 + duration * 0.6 + 0.05);
+  }
+
+  function scheduleMelodyLoop() {
+    if (!ambientPlaying || !audioCtx) return;
+    MELODY_PHRASE.forEach(function (note) { playMelodyNote(note.f, note.d, note.len); });
+    melodyLoopTimer = setTimeout(scheduleMelodyLoop, MELODY_PHRASE_CYCLE * 1000);
+  }
+
+  function startAmbientMusic() {
+    if (ambientPlaying) return;
+    var ctx0 = audioCtx;
+    if (!ctx0) return;
+    if (ctx0.state === 'suspended') { try { ctx0.resume(); } catch (e) {} }
+    ambientPlaying = true;
+
+    ambientGain = ctx0.createGain();
+    ambientGain.gain.setValueAtTime(0, ctx0.currentTime);
+    ambientGain.gain.linearRampToValueAtTime(0.015, ctx0.currentTime + 2.5);
+    ambientGain.connect(ctx0.destination);
+
+    melodyGain = ctx0.createGain();
+    melodyGain.gain.setValueAtTime(0, ctx0.currentTime);
+    melodyGain.gain.linearRampToValueAtTime(1, ctx0.currentTime + 1.5);
+    melodyGain.connect(ctx0.destination);
+
+    var freqs = [65.4, 98, 130.8]; // C2, G2, C3 — a thin, quiet bed beneath the melody
+    freqs.forEach(function (f, i) {
+      var osc = ctx0.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, ctx0.currentTime);
+      var voiceGain = ctx0.createGain();
+      voiceGain.gain.setValueAtTime(0.5 - i * 0.09, ctx0.currentTime);
+      var lfo = ctx0.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(0.045 + i * 0.013, ctx0.currentTime);
+      var lfoGain = ctx0.createGain();
+      lfoGain.gain.setValueAtTime(0.25, ctx0.currentTime);
+      lfo.connect(lfoGain);
+      lfoGain.connect(voiceGain.gain);
+      osc.connect(voiceGain);
+      voiceGain.connect(ambientGain);
+      osc.start();
+      lfo.start();
+      ambientNodes.push(osc, lfo);
+    });
+
+    setTimeout(function () { scheduleMelodyLoop(); }, 900);
+  }
+
+  function stopAmbientMusic() {
+    if (!ambientPlaying) return;
+    ambientPlaying = false;
+    clearTimeout(melodyLoopTimer);
+    var ctx0 = audioCtx;
+    if (ambientGain && ctx0) { try { ambientGain.gain.linearRampToValueAtTime(0, ctx0.currentTime + 0.9); } catch (e) {} }
+    if (melodyGain && ctx0) { try { melodyGain.gain.linearRampToValueAtTime(0, ctx0.currentTime + 0.9); } catch (e) {} }
+    var toStop = ambientNodes.slice();
+    ambientNodes = [];
+    setTimeout(function () {
+      toStop.forEach(function (n) { try { n.stop(); } catch (e) {} });
+    }, 1000);
+  }
+
+  function playTone(freq, startDelay, duration, gain, type) {
+    if (!soundEnabled) return;
+    var ctx0 = ensureAudio();
+    if (!ctx0) return;
+    if (ctx0.state === 'suspended') { try { ctx0.resume(); } catch (e) {} }
+    var t0 = ctx0.currentTime + (startDelay || 0);
+    var osc = ctx0.createOscillator();
+    var g = ctx0.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain || 0.09, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (duration || 0.4));
+    osc.connect(g); g.connect(ctx0.destination);
+    osc.start(t0); osc.stop(t0 + (duration || 0.4) + 0.05);
+  }
+
+  function playChapterChime(index) {
+    var base = 330 + index * 34;
+    playTone(base, 0, 0.5, 0.11, 'sine');
+    playTone(base * 1.5, 0.05, 0.4, 0.07, 'sine');
+  }
+
+  function playMarkChime() {
+    var notes = [392, 494, 587, 784];
+    notes.forEach(function (f, i) { playTone(f, i * 0.11, 0.55, 0.115, 'triangle'); });
+  }
+
+  function playCopyChime() {
+    playTone(600, 0, 0.15, 0.11, 'sine');
+    playTone(900, 0.05, 0.15, 0.09, 'sine');
+  }
+
+  function playQuizCompleteChime() {
+    var notes = [440, 554, 659];
+    notes.forEach(function (f, i) { playTone(f, i * 0.09, 0.4, 0.1, 'sine'); });
+  }
+
+  function playCorrectChime() {
+    playTone(700, 0, 0.18, 0.11, 'sine');
+    playTone(1000, 0.06, 0.2, 0.09, 'sine');
+  }
+
+  function playIncorrectChime() {
+    playTone(280, 0, 0.25, 0.095, 'triangle');
+    playTone(220, 0.08, 0.3, 0.08, 'triangle');
+  }
+
+  function playNoteSaveChime() {
+    playTone(523, 0, 0.3, 0.1, 'sine');
+    playTone(659, 0.08, 0.35, 0.085, 'sine');
+  }
+
+  function initSoundToggle() {
+    var btn = document.getElementById('soundToggle');
+    function paint() {
+      btn.classList.toggle('muted', !soundEnabled);
+      btn.innerHTML = '';
+      var i = document.createElement('i');
+      i.setAttribute('data-lucide', soundEnabled ? 'volume-2' : 'volume-x');
+      btn.appendChild(i);
+      if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+    }
+    paint();
+    btn.addEventListener('click', function () {
+      soundEnabled = !soundEnabled;
+      safeSetSound(soundEnabled);
+      ensureAudio();
+      paint();
+      if (soundEnabled) { playTone(520, 0, 0.25, 0.1, 'sine'); startAmbientMusic(); }
+      else { stopAmbientMusic(); }
+    });
+  }
+
+  /* ============================================================
+     2. WITNESS IDENTITY (local, honest — no fake global counters)
+     ============================================================ */
+  var LS_WITNESS_ID = 'ton_history_witness_id';
+  var LS_FIRST_VISIT = 'ton_history_first_visit';
+  var LS_VISITED_CH = 'ton_history_visited_chapters';
+  var LS_MARK_LEFT = 'ton_history_mark_left';
+
+  function safeGet(key) { try { return window.localStorage.getItem(key); } catch (e) { return null; } }
+  function safeSet(key, val) { try { window.localStorage.setItem(key, val); } catch (e) {} }
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function hashString(str) {
+    var h = 0;
+    for (var i = 0; i < str.length; i++) { h = (Math.imul(31, h) + str.charCodeAt(i)) | 0; }
+    return h >>> 0;
+  }
+
+  var witnessId = safeGet(LS_WITNESS_ID);
+  var firstVisit = safeGet(LS_FIRST_VISIT);
+  var isReturning = !!witnessId;
+
+  if (!witnessId) {
+    witnessId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)).toUpperCase().slice(-8);
+    safeSet(LS_WITNESS_ID, witnessId);
+  }
+  if (!firstVisit) { firstVisit = new Date().toISOString(); safeSet(LS_FIRST_VISIT, firstVisit); }
+
+  var visitedChapters = [];
+  try { visitedChapters = JSON.parse(safeGet(LS_VISITED_CH) || '[]'); } catch (e) { visitedChapters = []; }
+  var markLeft = safeGet(LS_MARK_LEFT) === '1';
+
+  function markChapterVisited(i) {
+    if (visitedChapters.indexOf(i) === -1) {
+      visitedChapters.push(i);
+      safeSet(LS_VISITED_CH, JSON.stringify(visitedChapters));
+    }
+  }
+
+  function formatDate(iso) {
+    try { return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+    catch (e) { return ''; }
+  }
+
+  var witnessSeedRand = mulberry32(hashString(witnessId));
+  var ORBIT = { cx: 0.50, cy: 0.32, rx: 0.24, ry: 0.11, speed: 0.22, spin: 0.7 };
+  var witnessStarPos = { x: ORBIT.cx, y: ORBIT.cy }; // used as the burst origin when a mark is left
+  var markLeftAt = null;
+
+  /* ============================================================
+     3. CONSTELLATION CANVAS (fixed ambient backdrop)
+     ============================================================ */
+  var canvas = document.getElementById('constellation');
+  var ctx = canvas.getContext('2d');
+  var dpr = Math.max(1, window.devicePixelRatio || 1);
+  var W = 0, H = 0;
+
+  var dust = [];
+  function initDust() {
+    dust = [];
+    var count = Math.max(30, Math.min(70, Math.round((W * H) / 26000)));
+    for (var i = 0; i < count; i++) {
+      dust.push({ x: Math.random(), y: Math.random(), r: 0.6 + Math.random() * 1.1, phase: Math.random() * Math.PI * 2, speed: 0.4 + Math.random() * 0.6 });
+    }
+  }
+  function resizeCanvas() {
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    initDust();
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  var burstParticles = [];
+  function spawnBurst(cx, cy) {
+    for (var i = 0; i < 26; i++) {
+      var angle = (Math.PI * 2 * i) / 26 + Math.random() * 0.3;
+      var speed = 0.6 + Math.random() * 1.6;
+      burstParticles.push({ x: cx, y: cy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1 });
+    }
+  }
+
+  function pulseAmbientGlow() {
+    var glow = document.getElementById('ambientGlow');
+    glow.classList.add('pulse');
+    setTimeout(function () { glow.classList.remove('pulse'); }, 500);
+  }
+
+  // Draws the small TON-mark "asteroid" — same silhouette as the corner
+  // watermark (top edge + stem + both diagonals), just smaller and thinner.
+  function drawAsteroid(cx0, cy0, scale, rotation, strokeColor, glow) {
+    ctx.save();
+    ctx.translate(cx0, cy0);
+    ctx.rotate(rotation);
+    ctx.scale(scale, scale);
+    var tl = { x: -30, y: -21 }, tc = { x: 0, y: -21 }, tr = { x: 30, y: -21 }, bp = { x: 0, y: 31 };
+    if (glow) { ctx.shadowColor = strokeColor; ctx.shadowBlur = 14; }
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 6.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tc.x, tc.y); ctx.lineTo(bp.x, bp.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(bp.x, bp.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tr.x, tr.y); ctx.lineTo(bp.x, bp.y); ctx.stroke();
+    ctx.restore();
+  }
+
+  var startTime = performance.now();
+  function draw(now) {
+    var t = (now - startTime) / 1000;
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    for (var i = 0; i < dust.length; i++) {
+      var d = dust[i];
+      var tw = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * d.speed + d.phase));
+      ctx.globalAlpha = tw * 0.55;
+      ctx.fillStyle = '#8FD8FF';
+      ctx.beginPath(); ctx.arc(d.x * W, d.y * H, d.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // the asteroid — a small TON mark, perpetually traveling its orbit and
+    // slowly tumbling. It never stops, before or after the mark is left.
+    // A depth factor (same phase as its vertical position) makes it swell
+    // and fade as it swings toward and away from the viewer — a simple 3D orbit.
+    // The orbit path itself stays invisible — only the asteroid is shown.
+    var markGlow = markLeft ? ((markLeftAt === null) ? 1 : Math.min(1, (now - markLeftAt) / 1200)) : 0;
+    var rLerp = 140 + (255 - 140) * markGlow;
+    var gLerp = 210 + (209 - 210) * markGlow;
+    var bLerp = 255 + (102 - 255) * markGlow;
+
+    var angle = t * ORBIT.speed;
+    var depth = Math.sin(angle); // -1 (far) .. 1 (near)
+    var ax = ORBIT.cx * W + Math.cos(angle) * ORBIT.rx * W;
+    var ay = ORBIT.cy * H + depth * ORBIT.ry * H;
+    var depthScale = 0.34 * (1 + depth * 0.4);
+    var depthAlpha = 0.55 + depth * 0.32;
+    var asteroidStroke = 'rgba(' + Math.round(rLerp) + ',' + Math.round(gLerp) + ',' + Math.round(bLerp) + ',' + depthAlpha.toFixed(2) + ')';
+    var tumble = t * ORBIT.spin;
+    drawAsteroid(ax, ay, depthScale, tumble, asteroidStroke, markGlow > 0.05);
+
+    if (burstParticles.length) {
+      var keep = [];
+      for (var b = 0; b < burstParticles.length; b++) {
+        var p = burstParticles[b];
+        p.x += p.vx; p.y += p.vy; p.vy += 0.02; p.life -= 0.018;
+        if (p.life > 0) {
+          ctx.globalAlpha = Math.max(0, p.life);
+          ctx.fillStyle = '#FFD166';
+          ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+          keep.push(p);
+        }
+      }
+      burstParticles = keep;
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  /* ============================================================
+     4. SCROLL STORY — reveal, active-section tracking, scrollspy
+     ============================================================ */
+  var stepCounter = document.getElementById('stepCounter');
+  var progressFill = document.getElementById('progressFill');
+  var progressMarkBtns = document.querySelectorAll('.progress-marks button');
+  var scrollCue = document.getElementById('scrollCue');
+
+  var allSections = Array.prototype.slice.call(document.querySelectorAll('#hero, .chapter-section, .witness-section'));
+  var chimedSet = {};
+
+  function setActiveSection(section) {
+    var era = section.getAttribute('data-era');
+    if (era) {
+      document.documentElement.style.setProperty('--era-color', era);
+      var resolved = getComputedStyle(document.documentElement).getPropertyValue(era.replace('var(', '').replace(')', '')).trim();
+      if (resolved) document.getElementById('ambientGlow').style.setProperty('--era-color', resolved);
+    }
+    stepCounter.textContent = section.dataset.label || '';
+
+    var activeId = section.id;
+    progressMarkBtns.forEach(function (btn) {
+      var targetId = 'ch' + btn.getAttribute('data-i');
+      btn.classList.toggle('active', targetId === activeId);
+      btn.classList.toggle('visited', visitedChapters.indexOf(parseInt(btn.getAttribute('data-i'), 10)) !== -1);
+    });
+
+    pulseAmbientGlow();
+
+    var idx = section.dataset.index !== undefined ? parseInt(section.dataset.index, 10) : -1;
+    syncMainButton(idx === 4);
+  }
+
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting || entry.intersectionRatio < 0.3) return;
+      var section = entry.target;
+
+      if (!section.classList.contains('in-view')) section.classList.add('in-view');
+
+      if (section.dataset.index !== undefined) {
+        var idx = parseInt(section.dataset.index, 10);
+        markChapterVisited(idx);
+        if (!chimedSet[idx]) { chimedSet[idx] = true; playChapterChime(idx); }
+        if (idx === 4) refreshWitnessPanel();
+      }
+
+      setActiveSection(section);
+    });
+  }, { threshold: [0, 0.3, 0.6] });
+
+  allSections.forEach(function (s) { revealObserver.observe(s); });
+
+  progressMarkBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById('ch' + btn.getAttribute('data-i'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      haptic('light');
+    });
+  });
+
+  var ticking = false;
+  function handleScroll() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = docHeight > 0 ? Math.min(100, Math.max(0, (scrollTop / docHeight) * 100)) : 0;
+    progressFill.style.width = pct + '%';
+
+    if (scrollCue) scrollCue.style.opacity = scrollTop > 30 ? '0' : '1';
+
+    if (tg && tg.BackButton) { if (scrollTop > 200) tg.BackButton.show(); else tg.BackButton.hide(); }
+    ticking = false;
+  }
+  window.addEventListener('scroll', function () {
+    if (!ticking) { requestAnimationFrame(handleScroll); ticking = true; }
+  }, { passive: true });
+  handleScroll();
+
+  /* ============================================================
+     4b. WHISPERS — long-press a glyph to reveal a hidden fact
+     ============================================================ */
+  (function enableWhispers() {
+    var bubble = document.getElementById('whisperBubble');
+    var textEl = document.getElementById('whisperText');
+    var pressTimer = null, hideTimer = null;
+
+    function showBubble(glyphEl, text) {
+      textEl.textContent = text;
+      bubble.style.left = '-9999px'; bubble.style.top = '-9999px';
+      var rect = glyphEl.getBoundingClientRect();
+      var bubbleHeight = bubble.offsetHeight || 70;
+      var bubbleWidth = bubble.offsetWidth || 260;
+      var top = rect.bottom + 10;
+      if (top + bubbleHeight > window.innerHeight - 12) top = rect.top - bubbleHeight - 10;
+      top = Math.max(12, top);
+      var left = Math.max(16, Math.min(window.innerWidth - bubbleWidth - 16, rect.left));
+      bubble.style.left = left + 'px';
+      bubble.style.top = top + 'px';
+      bubble.classList.add('show');
+      hapticNotify('success');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function () { bubble.classList.remove('show'); }, 4200);
+    }
+
+    document.querySelectorAll('.era-glyph.pressable').forEach(function (glyph) {
+      var whisper = glyph.getAttribute('data-whisper');
+      if (!whisper) return;
+      var start = function () { pressTimer = setTimeout(function () { showBubble(glyph, whisper); }, 480); };
+      var cancel = function () { clearTimeout(pressTimer); };
+      glyph.addEventListener('touchstart', start, { passive: true });
+      glyph.addEventListener('touchend', cancel, { passive: true });
+      glyph.addEventListener('touchmove', cancel, { passive: true });
+      glyph.addEventListener('mousedown', start);
+      glyph.addEventListener('mouseup', cancel);
+      glyph.addEventListener('mouseleave', cancel);
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.era-glyph') && !e.target.closest('.whisper-bubble')) bubble.classList.remove('show');
+    });
+  })();
+
+  /* ============================================================
+     5. MAIN BUTTON (native Telegram mirror of the Mark CTA)
+     ============================================================ */
+  function syncMainButton(showIt) {
+    if (!tg || !tg.MainButton) return;
+    try {
+      if (!showIt) { tg.MainButton.hide(); return; }
+      tg.MainButton.setText(markLeft ? 'MARK LEFT ✓' : 'LEAVE MY MARK');
+      tg.MainButton.setParams && tg.MainButton.setParams({ color: markLeft ? '#2ED573' : '#FFD166', text_color: '#04121C' });
+      tg.MainButton.offClick && tg.MainButton.offClick(mainButtonHandler);
+      tg.MainButton.onClick(mainButtonHandler);
+      tg.MainButton.show();
+    } catch (e) {}
+  }
+  function mainButtonHandler() { leaveMark(); }
+
+  /* ============================================================
+     6. LEAVE YOUR MARK
+     ============================================================ */
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+  function showToast(msg) {
+    document.getElementById('toastMsg').textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3000);
+  }
+
+  function fireConfetti() {
+    if (typeof confetti !== 'function') return;
+    var colors = ['#FFD166', '#00A3FF', '#2ED573', '#FFFFFF'];
+    confetti({ particleCount: 90, spread: 75, startVelocity: 38, gravity: 1.1, scalar: 0.9, origin: { x: 0.5, y: 0.35 }, colors: colors, zIndex: 300 });
+    setTimeout(function () {
+      confetti({ particleCount: 45, spread: 100, startVelocity: 28, origin: { x: 0.5, y: 0.3 }, colors: colors, zIndex: 300 });
+    }, 180);
+  }
+
+  function refreshWitnessPanel() {
+    document.querySelectorAll('.cp-dot').forEach(function (dot) {
+      var idx = parseInt(dot.getAttribute('data-node'), 10);
+      if (idx === 4) { dot.classList.toggle('lit', markLeft); return; }
+      dot.classList.toggle('lit', visitedChapters.indexOf(idx) !== -1);
+    });
+
+    var statusEl = document.getElementById('witnessStatus');
+    var noteCapsule = document.getElementById('noteCapsule');
+    var viewCardBtn = document.getElementById('viewCardBtn');
+    var markBtn = document.getElementById('leaveMarkBtn');
+    var markLabel = document.getElementById('leaveMarkLabel');
+
+    if (markLeft) {
+      statusEl.style.display = 'flex';
+      document.getElementById('witnessStatusId').textContent = 'Witness #' + witnessId;
+      document.getElementById('witnessStatusSub').textContent = 'counted on this device · ' + formatDate(firstVisit) + ' · never leaves this phone';
+      noteCapsule.style.display = 'block';
+      viewCardBtn.style.display = 'flex';
+      markBtn.disabled = true;
+      markLabel.textContent = 'Mark Left ✓';
+    } else {
+      statusEl.style.display = 'none';
+      noteCapsule.style.display = 'none';
+      viewCardBtn.style.display = 'none';
+      markBtn.disabled = false;
+      markLabel.textContent = 'Leave My Mark';
+    }
+  }
+
+  function leaveMark() {
+    if (markLeft) return;
+    markLeft = true;
+    markLeftAt = performance.now();
+    safeSet(LS_MARK_LEFT, '1');
+    hapticNotify('success');
+    spawnBurst(witnessStarPos.x * W, witnessStarPos.y * H);
+    showToast('You have been counted. Welcome, Witness #' + witnessId + ' ✨');
+    fireConfetti();
+    playMarkChime();
+    refreshWitnessPanel();
+    syncMainButton(true);
+  }
+
+  document.getElementById('leaveMarkBtn').addEventListener('click', function () {
+    haptic('medium');
+    leaveMark();
+  });
+
+  /* ============================================================
+     6b. ECOSYSTEM CHIPS — tap a coin, learn what it actually is
+     ============================================================ */
+  var TOKEN_INFO = {
+    gram: {
+      name: 'GRAM',
+      text: "GRAM is what the original 2018 vision became. Blocked by the SEC before it ever launched, it was reborn as Toncoin by an independent community in 2021 — and renamed back to GRAM in June 2026, after Telegram regained control of the network and the community voted to bring the original name home. It's TON's native currency: used to pay network fees, stake validators, and move value across the chain."
+    },
+    notcoin: {
+      name: 'Notcoin (NOT)',
+      text: "Started January 1, 2024 as a simple tap-to-earn game inside Telegram, built by the independent studio Open Builders. It grew to tens of millions of players within months — one of the clearest proofs that a blockchain token could onboard people who'd never touched crypto before."
+    },
+    dogs: {
+      name: 'DOGS',
+      text: "A memecoin tied to a dog doodle from Telegram's own community culture. Its August 2024 airdrop was claimed by over 17 million people within days — and within two weeks, DOGS had more unique holders than almost any token in crypto history."
+    },
+    usdt: {
+      name: 'USD₮ (Tether)',
+      text: "The world's largest stablecoin, deployed directly on TON in April 2024 so Telegram wallets could send dollar-pegged value instantly. It passed $1 billion in circulation on TON within about six months — the fastest adoption of any network in Tether's history, by the company's own account."
+    }
+  };
+
+  function initTokenChips() {
+    var chipRow = document.getElementById('chipRow');
+    if (!chipRow) return;
+    var panel = document.getElementById('tokenInfo');
+    var nameEl = document.getElementById('tiName');
+    var textEl2 = document.getElementById('tiText');
+    var chips = chipRow.querySelectorAll('.chip');
+    var openToken = null;
+
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var token = chip.getAttribute('data-token');
+        haptic('light');
+        if (openToken === token) {
+          panel.classList.remove('open');
+          chip.classList.remove('active-chip');
+          openToken = null;
+          return;
+        }
+        chips.forEach(function (c) { c.classList.remove('active-chip'); });
+        chip.classList.add('active-chip');
+        var info = TOKEN_INFO[token];
+        if (info) { nameEl.textContent = info.name; textEl2.textContent = info.text; }
+        panel.classList.add('open');
+        openToken = token;
+      });
+    });
+  }
+
+  /* ============================================================
+     6c. QUIZ — a light, optional recap of the story
+     ============================================================ */
+  var QUIZ_QUESTIONS = [
+    {
+      q: "What was the original currency called, back in 2018?",
+      options: ["Toncoin", "GRAM", "Notcoin", "TON Dollar"],
+      correct: 1,
+      explain: "GRAM was the name Telegram originally planned — it never actually reached the public."
+    },
+    {
+      q: "Which agency halted GRAM's public launch in 2019?",
+      options: ["The FBI", "The IRS", "The SEC", "The FTC"],
+      correct: 2,
+      explain: "The U.S. Securities and Exchange Commission argued the sale was an unregistered securities offering."
+    },
+    {
+      q: "How was the entire coin supply created after the 2021 community revival?",
+      options: ["Pre-mined by Telegram", "Mined from zero by the community", "Sold at a private auction", "Airdropped instantly by Durov"],
+      correct: 1,
+      explain: "Proof-of-Work Giver contracts meant the whole supply had to be mined, fairly, from scratch."
+    },
+    {
+      q: "In June 2026, the currency's name changed again. What is it called today?",
+      options: ["Toncoin", "Notcoin", "GRAM", "TON Dollar"],
+      correct: 2,
+      explain: "After Telegram regained control of the network, a community vote brought back the coin's very first name — the one the SEC once blocked."
+    }
+  ];
+  var quizIndex = 0, quizScore = 0, quizAnswered = false;
+
+  function renderQuizQuestion() {
+    var q = QUIZ_QUESTIONS[quizIndex];
+    document.getElementById('quizProgress').textContent = 'Question ' + (quizIndex + 1) + ' of ' + QUIZ_QUESTIONS.length;
+    document.getElementById('quizQuestion').textContent = q.q;
+    var optsEl = document.getElementById('quizOptions');
+    optsEl.innerHTML = '';
+    q.options.forEach(function (opt, i) {
+      var btn = document.createElement('button');
+      btn.className = 'quiz-option';
+      btn.type = 'button';
+      btn.textContent = opt;
+      btn.addEventListener('click', function () { handleQuizAnswer(i); });
+      optsEl.appendChild(btn);
+    });
+    document.getElementById('quizFeedback').style.display = 'none';
+    document.getElementById('quizNextBtn').style.display = 'none';
+    quizAnswered = false;
+  }
+
+  function handleQuizAnswer(i) {
+    if (quizAnswered) return;
+    quizAnswered = true;
+    var q = QUIZ_QUESTIONS[quizIndex];
+    var btns = document.getElementById('quizOptions').querySelectorAll('.quiz-option');
+    btns.forEach(function (b, idx) {
+      b.classList.add('disabled');
+      if (idx === q.correct) b.classList.add('correct');
+      else if (idx === i) b.classList.add('incorrect');
+    });
+    if (i === q.correct) { quizScore++; haptic('light'); playCorrectChime(); } else { haptic('medium'); playIncorrectChime(); }
+    var fb = document.getElementById('quizFeedback');
+    fb.textContent = q.explain;
+    fb.style.display = 'block';
+    document.getElementById('quizNextBtn').style.display = 'inline-flex';
+  }
+
+  function showQuizResult() {
+    document.getElementById('quizBody').style.display = 'none';
+    var resEl = document.getElementById('quizResult');
+    var msg;
+    if (quizScore === QUIZ_QUESTIONS.length) msg = "Perfect. You really were paying attention.";
+    else if (quizScore >= Math.ceil(QUIZ_QUESTIONS.length / 2)) msg = "Solid — you've got the shape of the story.";
+    else msg = "A rough start. The whole story's still right above, if you want a reread.";
+    resEl.innerHTML = '<div class="score">' + quizScore + '/' + QUIZ_QUESTIONS.length + '</div><div class="msg">' + msg + '</div>';
+    resEl.style.display = 'block';
+    playQuizCompleteChime();
+  }
+
+  function initQuiz() {
+    renderQuizQuestion();
+    document.getElementById('quizNextBtn').addEventListener('click', function () {
+      haptic('light');
+      quizIndex++;
+      if (quizIndex >= QUIZ_QUESTIONS.length) showQuizResult();
+      else renderQuizQuestion();
+    });
+  }
+
+  /* ============================================================
+     6d. SHARE — send the story itself, not just the Witness Card
+     ============================================================ */
+  var SHARE_URL = "https://t.me/YourBotName/app";
+  var SHARE_TEXT = "I just went through the History of TON — from a $1.7B vision, through a courtroom fight, to a blockchain now home to dozens of coins. Worth the scroll.";
+
+  function shareStory() {
+    haptic('light');
+    var link = "https://t.me/share/url?url=" + encodeURIComponent(SHARE_URL) + "&text=" + encodeURIComponent(SHARE_TEXT);
+    if (tg && tg.openTelegramLink) {
+      try { tg.openTelegramLink(link); return; } catch (e) {}
+    }
+    window.open(link, '_blank');
+  }
+
+  /* ============================================================
+     7. NOTE CAPSULE — a line to your future self
+     ============================================================ */
+  var LS_NOTE = 'ton_history_note';
+  var LS_NOTE_DATE = 'ton_history_note_date';
+  var savedNote = safeGet(LS_NOTE) || '';
+  var savedNoteDate = safeGet(LS_NOTE_DATE) || '';
+
+  function initNoteCapsule() {
+    var input = document.getElementById('noteInput');
+    var count = document.getElementById('noteCount');
+    var saveBtn = document.getElementById('noteSaveBtn');
+    input.value = savedNote;
+    count.textContent = input.value.length + '/140';
+    input.addEventListener('input', function () { count.textContent = input.value.length + '/140'; });
+    saveBtn.addEventListener('click', function () {
+      var val = input.value.trim();
+      savedNote = val; savedNoteDate = new Date().toISOString();
+      safeSet(LS_NOTE, val); safeSet(LS_NOTE_DATE, savedNoteDate);
+      haptic('medium');
+      showToast(val ? 'Saved. Future-you will see this. 📝' : 'Cleared.');
+      if (val) playNoteSaveChime();
+    });
+  }
+
+  function renderPastNoteCard() {
+    var card = document.getElementById('pastNoteCard');
+    if (!savedNote || !isReturning) { card.style.display = 'none'; return; }
+    document.getElementById('pastNoteText').textContent = '"' + savedNote + '"';
+    document.getElementById('pastNoteMeta').textContent = '— Witness #' + witnessId + ', ' + formatDate(savedNoteDate);
+    card.style.display = 'block';
+  }
+
+  /* ============================================================
+     8. WITNESS CARD — a personal, shareable artifact
+     ============================================================ */
+  function wrapCanvasText(cx, text, x, y, maxWidth, lineHeight) {
+    var words = text.split(' '), line = '', lines = [];
+    for (var i = 0; i < words.length; i++) {
+      var test = line + words[i] + ' ';
+      if (cx.measureText(test).width > maxWidth && line !== '') { lines.push(line); line = words[i] + ' '; }
+      else { line = test; }
+    }
+    lines.push(line);
+    lines.forEach(function (l, idx) { cx.fillText(l.trim(), x, y + idx * lineHeight); });
+    return lines.length;
+  }
+
+  function buildWitnessCardCanvas() {
+    var cw = 720, ch = 960;
+    var c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    var cx = c.getContext('2d');
+
+    var bg = cx.createLinearGradient(0, 0, 0, ch);
+    bg.addColorStop(0, '#0B0E14'); bg.addColorStop(1, '#161C2C');
+    cx.fillStyle = bg; cx.fillRect(0, 0, cw, ch);
+
+    var glow = cx.createRadialGradient(cw / 2, 210, 20, cw / 2, 210, 420);
+    glow.addColorStop(0, 'rgba(0, 163, 255, 0.18)'); glow.addColorStop(1, 'rgba(0, 163, 255, 0)');
+    cx.fillStyle = glow; cx.fillRect(0, 0, cw, ch);
+
+    cx.fillStyle = 'rgba(255,255,255,0.55)'; cx.font = '600 22px Inter, sans-serif'; cx.textAlign = 'center';
+    cx.fillText('HISTORY OF TON · WITNESS CARD', cw / 2, 78);
+    cx.fillStyle = '#F3F6FB'; cx.font = '700 40px Inter, sans-serif';
+    cx.fillText('You were here.', cw / 2, 138);
+
+    var cardPts = {
+      bottom: { x: cw * 0.50, y: ch * 0.32 }
+    };
+
+    function drawCardAsteroid(px, py, scale, glowColor) {
+      var g = cx.createRadialGradient(px, py, 0, px, py, 46 * scale);
+      g.addColorStop(0, glowColor); g.addColorStop(1, 'rgba(0,0,0,0)');
+      cx.fillStyle = g; cx.beginPath(); cx.arc(px, py, 46 * scale, 0, Math.PI * 2); cx.fill();
+
+      cx.save();
+      cx.translate(px, py);
+      cx.scale(scale, scale);
+      var tl = { x: -30, y: -21 }, tc = { x: 0, y: -21 }, tr = { x: 30, y: -21 }, bp = { x: 0, y: 31 };
+      var coinGrad = cx.createLinearGradient(tl.x, tl.y, tr.x, bp.y);
+      coinGrad.addColorStop(0, '#5AC8FA');
+      coinGrad.addColorStop(1, '#0062A8');
+      cx.strokeStyle = coinGrad;
+      cx.lineWidth = 9;
+      cx.lineJoin = 'round'; cx.lineCap = 'round';
+      cx.beginPath(); cx.moveTo(tl.x, tl.y); cx.lineTo(tr.x, tr.y); cx.stroke();
+      cx.beginPath(); cx.moveTo(tc.x, tc.y); cx.lineTo(bp.x, bp.y); cx.stroke();
+      cx.beginPath(); cx.moveTo(tl.x, tl.y); cx.lineTo(bp.x, bp.y); cx.stroke();
+      cx.beginPath(); cx.moveTo(tr.x, tr.y); cx.lineTo(bp.x, bp.y); cx.stroke();
+      cx.restore();
+    }
+
+    drawCardAsteroid(cardPts.bottom.x, cardPts.bottom.y, 2.3, 'rgba(90, 200, 250, 0.45)');
+
+    cx.textAlign = 'center'; cx.fillStyle = '#FFD166'; cx.font = '700 30px Inter, sans-serif';
+    cx.fillText('WITNESS #' + witnessId, cw / 2, ch * 0.62);
+    cx.fillStyle = 'rgba(255,255,255,0.5)'; cx.font = '500 18px Inter, sans-serif';
+    cx.fillText('first arrived ' + formatDate(firstVisit), cw / 2, ch * 0.62 + 30);
+
+    if (savedNote) {
+      cx.fillStyle = 'rgba(255,255,255,0.82)'; cx.font = 'italic 400 22px Inter, sans-serif'; cx.textAlign = 'center';
+      wrapCanvasText(cx, '"' + savedNote + '"', cw / 2, ch * 0.74, cw - 140, 30);
+    }
+
+    var fx = cw / 2, fy = ch - 92;
+    cx.save(); cx.translate(fx, fy);
+    cx.beginPath(); cx.moveTo(0, -18); cx.lineTo(16, 0); cx.lineTo(0, 18); cx.lineTo(-16, 0); cx.closePath();
+    var gemGrad = cx.createLinearGradient(-16, -18, 16, 18);
+    gemGrad.addColorStop(0, '#00A3FF'); gemGrad.addColorStop(1, '#0088CC');
+    cx.fillStyle = gemGrad; cx.fill(); cx.restore();
+
+    cx.fillStyle = 'rgba(255,255,255,0.35)'; cx.font = '500 15px Inter, sans-serif'; cx.textAlign = 'center';
+    cx.fillText('a private constellation, kept on one device', cw / 2, ch - 40);
+
+    return c;
+  }
+
+  function initWitnessCardModal() {
+    var modal = document.getElementById('cardModal');
+    var img = document.getElementById('cardModalImg');
+    var dl = document.getElementById('cardDownloadBtn');
+    var openBtn = document.getElementById('viewCardBtn');
+    var closeBtn = document.getElementById('cardModalClose');
+
+    openBtn.addEventListener('click', function () {
+      haptic('light');
+      var canvasEl = buildWitnessCardCanvas();
+      var dataUrl = canvasEl.toDataURL('image/png');
+      img.src = dataUrl; dl.href = dataUrl;
+      modal.classList.add('show');
+    });
+    closeBtn.addEventListener('click', function () { modal.classList.remove('show'); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('show'); });
+  }
+
+  /* ============================================================
+     9. QR CODE + WALLET COPY (optional support, secondary)
+     ============================================================ */
+  var TON_WALLET = "UQA5qsYrra5Pil6gf05WLsx7jXufIqHG2pVkVqNIDHqsK5C6";
+  var qrRendered = false;
+
+  function renderWalletAddress() {
+    var full = TON_WALLET;
+    var display = full.length > 20 ? full.slice(0, 10) + '…' + full.slice(-8) : full;
+    var el = document.getElementById('walletAddr');
+    el.textContent = display; el.title = full;
+  }
+  renderWalletAddress();
+
+  function renderQRCode() {
+    if (qrRendered) return;
+    var holder = document.getElementById('qrcode-canvas-holder');
+    if (!holder || typeof QRCode === 'undefined') return;
+    holder.innerHTML = '';
+    new QRCode(holder, {
+      text: 'ton://transfer/' + TON_WALLET, width: 190, height: 190,
+      colorDark: '#04121C', colorLight: '#FFFFFF', correctLevel: QRCode.CorrectLevel.M
+    });
+    qrRendered = true;
+  }
+  var detailsEl = document.querySelector('details.optional-support');
+  if (detailsEl) {
+    detailsEl.addEventListener('toggle', function () { if (detailsEl.open) renderQRCode(); });
+  }
+
+  function copyWalletAddress() {
+    var text = TON_WALLET;
+    function done(ok) {
+      if (ok) { showToast('Address copied to clipboard! 🚀'); hapticNotify('success'); playCopyChime(); }
+      else { showToast('Could not copy — long-press to select'); hapticNotify('error'); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallbackCopy(text, done); });
+    } else { fallbackCopy(text, done); }
+  }
+  function fallbackCopy(text, cb) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      cb(ok);
+    } catch (e) { cb(false); }
+  }
+
+  var walletBox = document.getElementById('walletBox');
+  if (walletBox) {
+    walletBox.addEventListener('click', function () { haptic('light'); copyWalletAddress(); });
+    walletBox.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyWalletAddress(); }
+    });
+  }
+
+  /* ============================================================
+     10. INIT
+     ============================================================ */
+  var witnessLine = document.getElementById('witnessLine');
+  if (isReturning) {
+    witnessLine.textContent = markLeft ? 'Witness #' + witnessId + ' · returned' : 'Welcome back · since ' + formatDate(firstVisit);
+  } else {
+    witnessLine.textContent = '';
+  }
+
+  initSoundToggle();
+
+  // Browsers only allow audio to start on a genuine, trusted user gesture —
+  // a scroll-triggered chime doesn't count, even though a real scroll caused
+  // it. Unlock on the very first tap/click/key anywhere, so sound doesn't
+  // wait for someone to specifically find the speaker icon.
+  (function unlockAudioOnFirstGesture() {
+    var unlocked = false;
+    function unlock() {
+      if (unlocked) return;
+      unlocked = true;
+      if (soundEnabled) ensureAudio();
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('click', unlock);
+    }
+    document.addEventListener('pointerdown', unlock, { passive: true });
+    document.addEventListener('touchstart', unlock, { passive: true });
+    document.addEventListener('keydown', unlock);
+    document.addEventListener('click', unlock);
+  })();
+
+  initTokenChips();
+  initQuiz();
+  document.getElementById('shareBtn').addEventListener('click', shareStory);
+  initNoteCapsule();
+  renderPastNoteCard();
+  initWitnessCardModal();
+  refreshWitnessPanel();
+
+})();
+</script>
+</body>
+</html>
